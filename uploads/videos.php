@@ -1,52 +1,80 @@
+<?php
+
+session_start();
+require_once __DIR__ . "/../core/database.php";
+
+$pdo = getPDO();
+
+$stmt = $pdo->query("
+    SELECT *
+    FROM videos
+    ORDER BY created_at DESC
+");
+
+$videos = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+?>
+
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Videos</title>
 </head>
 <body>
-    
-    <?php
-    require_once "../core/database.php";
 
-    $pdo = getPDO();
+<h1>All Videos</h1>
 
-    $stmt = $pdo->query("
-        SELECT *
-        FROM videos
-        ORDER BY created_at DESC
-    ");
+<?php foreach($videos as $video): ?>
 
-    $videos = $stmt->fetchAll();
+<?php
 
-    foreach ($videos as $video) {
-        echo "<div>";
-        echo "<h3>" . htmlspecialchars($video["title"]) . "</h3>";
-        echo "<p>" . nl2br(htmlspecialchars($video["description"])) . "</p>";
-        echo "<video width='600' height='240' controls>";
-        echo "<source src='../uploads/" . htmlspecialchars($video["filename"]) . "' type='video/mp4'>";
-        echo "Your browser does not support the video tag.";
-        echo "</video>";
-        echo "</div><hr>";
-    }
+$likeStmt = $pdo->prepare("
+    SELECT COUNT(*)
+    FROM likes
+    WHERE video_id = ?
+");
 
-    $id = $_GET["id"] ?? null;
+$likeStmt->execute([$video["id"]]);
 
-    $stmt = $pdo->prepare("SELECT * FROM videos WHERE id = ?");
-    $stmt->execute([$id]);
-    $video = $stmt->fetch();
-    if ($video) {
-        echo "<h2>" . htmlspecialchars($video["title"]) . "</h2>";
-        echo "<p>" . nl2br(htmlspecialchars($video["description"])) . "</p>";
-        echo "<video width='600' height='240' controls>";
-        echo "<source src='../uploads/" . htmlspecialchars($video["filename"]) . "' type='video/mp4'>";
-        echo "Your browser does not support the video tag.";
-        echo "</video>";
-    } else {
-        echo "Video not found.";
-    }
-    ?>
+$likes = $likeStmt->fetchColumn();
+
+$commentStmt = $pdo->prepare("
+    SELECT COUNT(*)
+    FROM comments
+    WHERE video_id = ?
+");
+
+$commentStmt->execute([$video["id"]]);
+
+$comments = $commentStmt->fetchColumn();
+
+?>
+
+<div style="margin-bottom:40px; border:1px solid #ccc; padding:20px;">
+
+    <h2>
+        <?= htmlspecialchars($video["title"]) ?>
+    </h2>
+
+    <video width="600" controls>
+        <source
+            src="../uploads/<?= htmlspecialchars($video["filename"]) ?>"
+            type="video/mp4">
+    </video>
+
+    <p>
+        👍 <?= $likes ?>
+        |
+        💬 <?= $comments ?>
+    </p>
+
+    <a href="../watch.php?id=<?= $video["id"] ?>">
+        Watch Video
+    </a>
+
+</div>
+
+<?php endforeach; ?>
 
 </body>
 </html>
